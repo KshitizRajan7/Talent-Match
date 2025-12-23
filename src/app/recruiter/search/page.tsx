@@ -4,20 +4,15 @@ import { useState } from "react";
 import SearchForm from "../search/SearchForm"; // your SearchForm component
 import RecruiterSearchClient from "./RecruiterSearchClient";
 import { Candidate, ExperienceLevel } from "@/data/mockCandidates";
-import { fetchCandidates } from "@/lib/api/candidates";
+import { fetchCandidates, CandidateFilters } from "@/lib/api/candidates";
 
 export default function SearchPage() {
   const [showClient, setShowClient] = useState(false);
-  const [filters, setFilters] = useState<{
-    role: string;
-    skill: string;
-    experienceLevel?: ExperienceLevel;
-    country: string;
-  } | null>(null);
+  const [filters, setFilters] = useState<CandidateFilters | null>(null);
 
   const [initialCandidates, setInitialCandidates] = useState<Candidate[]>([]);
 
-  const handleSearchSubmit = async (formFilters: typeof filters) => {
+  const handleSearchSubmit = async (formFilters: CandidateFilters) => {
     if (!formFilters) return;
 
     // Fetch candidates according to submitted search form

@@ -1,184 +1,283 @@
 "use client";
 
-import { ExperienceLevel } from "@/data/mockCandidates";
 import { useState } from "react";
+import { CandidateSkill,SkillLevel, JobType, ExperienceLevel } from "@/data/mockCandidates";
+import { CandidateFilters } from "@/lib/api/candidates";
 
 interface Props {
-  onSubmit: (filters: {
-    role: string;
-    skills: string[];
-    experienceLevel?: ExperienceLevel;
-    country: string;
-    jobType?: string;
-    locationPreference?: string;
-  }) => void;
+  onSubmit: (filters: CandidateFilters) => void;
 }
 
-const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Freelance"];
-const LOCATION_PREFERENCES = ["Remote", "On-site", "Hybrid"];
+// interface SelectedSkill {
+//   name: string;
+//   level: SkillLevel;
+// }
+
+const ALL_SKILLS = [
+  "React",
+  "JavaScript",
+  "TypeScript",
+  "Next.js",
+  "Node.js",
+  "MongoDB",
+  "Docker",
+  "Tailwind CSS",
+  "Figma",
+  "Python",
+];
+
+const ALL_ROLES = [
+  "Frontend Developer",
+  "Backend Developer",
+  "Fullstack Developer",
+  "UI/UX Designer",
+  "DevOps Engineer",
+  "Product Manager",
+];
+
+const ALL_COUNTRIES = [
+  "Nepal",
+  "India",
+  "United States",
+  "Germany",
+  "Canada",
+  "Australia",
+];
+
+const JOB_TYPES: JobType[] = [
+  "Full-time",
+  "Part-time",
+  "Remote",
+  "Internship",
+];
+
+const LOCATIONS = ["Onsite", "Remote", "Hybrid"] as const;
 
 export default function SearchForm({ onSubmit }: Props) {
   const [role, setRole] = useState("");
-  const [skillInput, setSkillInput] = useState("");
-  const [skills, setSkills] = useState<string[]>([]);
-  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | "">("");
+  const [roleInput, setRoleInput] = useState("");
   const [country, setCountry] = useState("");
-  const [jobType, setJobType] = useState<string | "">("");
-  const [locationPreference, setLocationPreference] = useState<string | "">("");
+  const [countryInput, setCountryInput] = useState("");
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | "">("");
+  const [jobTypes, setJobTypes] = useState<JobType[]>([]);
+  const [locationPreference, setLocationPreference] = useState<(typeof LOCATIONS)[number] | "">("");
 
-  const handleSkillKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const newSkill = skillInput.trim();
-      if (newSkill && !skills.includes(newSkill)) {
-        setSkills([...skills, newSkill]);
-        setSkillInput("");
-      }
-    }
+  const [skillInput, setSkillInput] = useState("");
+  const [skills, setSkills] = useState<CandidateSkill[]>([]);
+
+  // Suggestions
+  const filteredSkills = ALL_SKILLS.filter(
+    (s) =>
+      s.toLowerCase().includes(skillInput.toLowerCase()) &&
+      !skills.some((sk) => sk.name === s)
+  );
+
+  const filteredRoles = ALL_ROLES.filter(
+    (r) =>
+      r.toLowerCase().includes(roleInput.toLowerCase())
+  );
+
+  const filteredCountries = ALL_COUNTRIES.filter(
+    (c) =>
+      c.toLowerCase().includes(countryInput.toLowerCase())
+  );
+
+  // Handlers
+  const addSkill = (name: string) => {
+    setSkills([...skills, { name, level: "Beginner" }]);
+    setSkillInput("");
   };
 
-  const removeSkill = (skillToRemove: string) => {
-    setSkills(skills.filter((s) => s !== skillToRemove));
+  const updateSkillLevel = (name: string, level: SkillLevel) => {
+    setSkills((prev) =>
+      prev.map((s) => (s.name === name ? { ...s, level } : s))
+    );
+  };
+
+  const removeSkill = (name: string) => {
+    setSkills(skills.filter((s) => s.name !== name));
+  };
+
+  const handleJobTypeToggle = (type: JobType) => {
+    if (jobTypes.includes(type)) {
+      setJobTypes(jobTypes.filter((j) => j !== type));
+    } else {
+      setJobTypes([...jobTypes, type]);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      role,
-      skills,
+      role: role || undefined,
+      country: country || undefined,
       experienceLevel: experienceLevel || undefined,
-      country,
-      jobType: jobType || undefined,
+      jobType: jobTypes.length > 0 ? jobTypes[0] : undefined,
       locationPreference: locationPreference || undefined,
+       skills: skills.length > 0 ? skills : undefined,  
     });
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="max-w-lg mx-auto p-8 bg-white rounded-3xl shadow-xl border border-gray-300 space-y-6"
-    >
-      <h2 className="text-3xl font-bold mb-1 text-center text-gray-900">Search Candidates</h2>
-      <p className="text-center text-gray-600 mb-6 text-sm">
-        Filter candidates by role, skills, experience, location, and job type.
-      </p>
+    <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow space-y-6">
+      <h2 className="text-2xl font-bold text-center">Search Candidates</h2>
 
       {/* Role */}
-      <div>
-        <label className="block text-gray-800 font-semibold mb-2">Role</label>
+      <div className="relative">
+        <label className="block font-semibold mb-1">Role</label>
         <input
-          type="text"
-          placeholder="e.g., Frontend Developer"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full border border-gray-400 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition placeholder-gray-500 text-gray-900"
+          className="w-full border p-3 rounded"
+          placeholder="Type role"
+          value={roleInput || role}
+          onChange={(e) => {
+            setRoleInput(e.target.value);
+            setRole(""); // reset role when typing
+          }}
         />
+        {roleInput && filteredRoles.length > 0 && (
+          <ul className="absolute z-10 bg-white border w-full rounded mt-1">
+            {filteredRoles.map((r) => (
+              <li
+                key={r}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setRole(r);
+                  setRoleInput("");
+                }}
+              >
+                {r}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Skills */}
-      <div>
-        <label className="block text-gray-800 font-semibold mb-2">Skills</label>
+      <div className="relative">
+        <label className="block font-semibold mb-1">Skills</label>
         <input
-          type="text"
-          placeholder="Type and press Enter or comma"
+          className="w-full border p-3 rounded"
+          placeholder="Type skill"
           value={skillInput}
           onChange={(e) => setSkillInput(e.target.value)}
-          onKeyDown={handleSkillKeyDown}
-          className="w-full border border-gray-400 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition placeholder-gray-500 text-gray-900"
         />
-        <div className="flex flex-wrap mt-3 gap-2">
-          {skills.map((s) => (
-            <span
-              key={s}
-              className="flex items-center gap-2 bg-teal-100 text-teal-900 px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
-            >
-              {s}
-              <button
-                type="button"
-                className="text-teal-900 font-bold hover:text-teal-700 transition"
-                onClick={() => removeSkill(s)}
+        {skillInput && filteredSkills.length > 0 && (
+          <ul className="absolute z-10 bg-white border w-full rounded mt-1">
+            {filteredSkills.map((s) => (
+              <li
+                key={s}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => addSkill(s)}
               >
-                ×
-              </button>
-            </span>
+                {s}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex flex-wrap gap-2 mt-2">
+          {skills.map((s) => (
+            <div key={s.name} className="flex items-center gap-2 bg-teal-100 px-3 py-2 rounded">
+              <span>{s.name}</span>
+              <select
+                value={s.level}
+                onChange={(e) => updateSkillLevel(s.name, e.target.value as SkillLevel)}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option>Beginner</option>
+                <option>Intermediate</option>
+                <option>Advanced</option>
+                <option>Expert</option>
+              </select>
+              <button type="button" onClick={() => removeSkill(s.name)}>×</button>
+            </div>
           ))}
         </div>
+      </div>
+
+      {/* Country */}
+      <div className="relative">
+        <label className="block font-semibold mb-1">Country</label>
+        <input
+          className="w-full border p-3 rounded"
+          placeholder="Type country"
+          value={countryInput || country}
+          onChange={(e) => {
+            setCountryInput(e.target.value);
+            setCountry(""); // reset selected country
+          }}
+        />
+        {countryInput && filteredCountries.length > 0 && (
+          <ul className="absolute z-10 bg-white border w-full rounded mt-1">
+            {filteredCountries.map((c) => (
+              <li
+                key={c}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setCountry(c);
+                  setCountryInput("");
+                }}
+              >
+                {c}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Experience Level */}
       <div>
-        <label className="block text-gray-800 font-semibold mb-2">Experience Level</label>
+        <label className="block font-semibold mb-1">Experience Level</label>
         <select
+          className="w-full border p-3 rounded"
           value={experienceLevel}
           onChange={(e) => setExperienceLevel(e.target.value as ExperienceLevel)}
-          className="w-full border border-gray-400 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition text-gray-900"
         >
-          <option value="">Any Experience</option>
-          <option value="Junior">Junior</option>
-          <option value="Mid">Mid</option>
-          <option value="Senior">Senior</option>
+          <option value="">Any</option>
+          <option>Junior</option>
+          <option>Mid</option>
+          <option>Senior</option>
         </select>
       </div>
 
-      {/* Country */}
+      {/* Job Types (multiple) */}
       <div>
-        <label className="block text-gray-800 font-semibold mb-2">Country</label>
-        <input
-          type="text"
-          placeholder="e.g., United States"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          className="w-full border border-gray-400 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition placeholder-gray-500 text-gray-900"
-        />
-      </div>
-
-      {/* Job Type */}
-      <div>
-        <label className="block text-gray-800 font-semibold mb-2">Job Type</label>
+        <label className="block font-semibold mb-1">Job Types</label>
         <div className="flex flex-wrap gap-2">
-          {JOB_TYPES.map((type) => (
+          {JOB_TYPES.map((jt) => (
             <button
               type="button"
-              key={type}
+              key={jt}
               className={`px-4 py-2 rounded-full border font-medium text-sm transition ${
-                jobType === type
+                jobTypes.includes(jt)
                   ? "bg-teal-600 text-white border-teal-600"
                   : "bg-white text-gray-700 border-gray-400 hover:bg-gray-100"
               }`}
-              onClick={() => setJobType(type)}
+              onClick={() => handleJobTypeToggle(jt)}
             >
-              {type}
+              {jt}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Location Preference */}
+      {/* Location */}
       <div>
-        <label className="block text-gray-800 font-semibold mb-2">Location Preference</label>
-        <div className="flex flex-wrap gap-2">
-          {LOCATION_PREFERENCES.map((loc) => (
-            <button
-              type="button"
-              key={loc}
-              className={`px-4 py-2 rounded-full border font-medium text-sm transition ${
-                locationPreference === loc
-                  ? "bg-teal-600 text-white border-teal-600"
-                  : "bg-white text-gray-700 border-gray-400 hover:bg-gray-100"
-              }`}
-              onClick={() => setLocationPreference(loc)}
-            >
-              {loc}
-            </button>
+        <label className="block font-semibold mb-1">Location Preference</label>
+        <select
+          className="w-full border p-3 rounded"
+          value={locationPreference}
+          onChange={(e) =>
+            setLocationPreference(e.target.value as any)
+          }
+        >
+          <option value="">Any</option>
+          {LOCATIONS.map((l) => (
+            <option key={l}>{l}</option>
           ))}
-        </div>
+        </select>
       </div>
 
-      {/* Submit */}
-      <button
-        type="submit"
-        className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700 transition text-lg"
-      >
+      <button className="w-full bg-teal-600 text-white py-3 rounded font-semibold">
         Search
       </button>
     </form>

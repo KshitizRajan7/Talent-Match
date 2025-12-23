@@ -1,15 +1,16 @@
 // lib/api/candidates.ts
 
-import { mockCandidates, Candidate, ExperienceLevel, JobType } from "@/data/mockCandidates";
+import { mockCandidates, Candidate, ExperienceLevel, JobType, CandidateSkill } from "@/data/mockCandidates";
 
 export interface CandidateFilters {
   role?: string;
-  skill?: string;
-  skills?: string[]; // alternative for multiple skills
+  // skill?: string;
+  skills?: CandidateSkill[]; // alternative for multiple skills
   country?: string;
   city?: string;
   experienceLevel?: ExperienceLevel;
   jobType?: JobType;
+  locationPreference ?: Candidate["locationPreference"]  
 }
 
 /**
@@ -65,8 +66,8 @@ export async function fetchCandidates(filters: CandidateFilters = {}): Promise<C
   // Multiple skills filter (all must be present)
   if (skills && skills.length > 0) {
     results = results.filter((c) =>
-      skills.every((sk) =>
-        c.skills.some((s) => includesIgnoreCase(s.name, sk))
+      skills.every((sk ) =>
+        c.skills.some((s) => includesIgnoreCase(s.name, sk.name))
       )
     );
   }
